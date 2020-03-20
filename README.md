@@ -6,12 +6,16 @@ of course you can also customize the density and name
 
 
 Example:
+
+
     <TextView
         android:id="@+id/vo_title_tv"
         android:layout_width="1px"
         android:layout_height="2dp"
         android:textSize="3sp"
         android:lines="2" />
+        
+        
 
 Will be generated under the dimen.xml file in the default directory:
 
