@@ -1,0 +1,29 @@
+<idea-plugin>
+    <id>com.mesmers.dimentools</id>
+    <name>Resource Dimen Tools</name>
+    <version>1.0</version>
+
+    <description>This is a dimen tools,Automatically generate dimen with different densities
+    </description>
+
+    <change-notes>This is Alpha version</change-notes>
+
+    <!-- please see http://www.jetbrains.org/intellij/sdk/docs/basics/getting_started/build_number_ranges.html for description -->
+    <idea-version since-build="173.0" />
+
+    <!-- please see http://www.jetbrains.org/intellij/sdk/docs/basics/getting_started/plugin_compatibility.html
+         on how to target different products -->
+    <!-- uncomment to enable plugin in all products
+    <depends>com.intellij.modules.lang</depends>
+    -->
+
+    <actions>
+        <!-- Add your actions here -->
+        <action id="ResourcePlugin.com.mesmers.dimentools.DimenAction" class="com.mesmers.dimentools.DimenAction" text="generate dimen"
+            description="标注生成器">
+            <add-to-group group-id="GenerateGroup" />
+            <keyboard-shortcut keymap="$default" first-keystroke="shift ctrl B" />
+        </action>
+    </actions>
+
+</idea-plugin>
