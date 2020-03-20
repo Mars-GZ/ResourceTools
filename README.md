@@ -22,3 +22,9 @@ Will be generated under the dimen.xml file in the default directory:
     <dimen name="dimen_0_33dp">0.33dp</dimen>
     <dimen name="dimen_2dp">2dp</dimen>
     <dimen name="dimen_3sp">3sp</dimen>
+
+Will be generated at another density
+
+    <dimen name="dimen_0_33dp">0.36dp</dimen>
+    <dimen name="dimen_2dp">2.18dp</dimen>
+    <dimen name="dimen_3sp">3.27sp</dimen>
