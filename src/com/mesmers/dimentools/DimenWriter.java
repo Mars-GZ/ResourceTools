@@ -100,17 +100,19 @@ public class DimenWriter extends WriteCommandAction.Simple {
                 XmlTag subTag = XmlElementFactory.getInstance(mProject).createTagFromText(builder.toString());
                 String currentValue = getNameValue(subTag);
                 XmlTag afterTag = null;
-                for (int i = 0; i < tagList.size(); i++) {
-                    XmlTag xmlTag = tagList.get(i);
-                    String xmlValue = getNameValue(xmlTag);
-                    if (xmlValue == null || currentValue == null) {
-                        continue;
+                if (currentValue != null && currentValue.startsWith("dimen_")) {
+                    for (int i = 0; i < tagList.size(); i++) {
+                        XmlTag xmlTag = tagList.get(i);
+                        String xmlValue = getNameValue(xmlTag);
+                        if (xmlValue == null || !currentValue.startsWith("dimen_")) {
+                            continue;
+                        }
+                        float xdv = getDimenTagValue(xmlTag);
+                        float cdv = getDimenTagValue(subTag);
+                        if (cdv > xdv) {
+                            afterTag = xmlTag;
+                        }
                     }
-                    if (currentValue.length() >= xmlValue.length() && currentValue.compareTo(xmlValue) > 0) {
-                        afterTag = xmlTag;
-                        continue;
-                    }
-                    break;
                 }
                 if (afterTag != null) {
                     tag.addAfter(subTag, afterTag);
@@ -129,5 +131,10 @@ public class DimenWriter extends WriteCommandAction.Simple {
             return attribute.getValue();
         }
         return null;
+    }
+
+    private float getDimenTagValue(XmlTag tag) {
+        String text = tag.getValue().getText();
+        return Float.parseFloat(text.substring(0, text.length() - 2));
     }
 }

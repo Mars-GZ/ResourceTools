@@ -19,8 +19,7 @@ public class ElementFactory {
         if (!matcher.find()) {
             return null;
         }
-        String attributeName = attribute.getName();
-        if ("android:textSize".equalsIgnoreCase(attributeName) || attributeValue.endsWith("sp")) {
+        if (attributeValue.endsWith("sp")) {
             return new SpElement(tag, attribute);
         } else {
             return new DpElement(tag, attribute);
