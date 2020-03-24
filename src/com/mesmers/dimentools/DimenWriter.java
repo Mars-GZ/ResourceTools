@@ -13,57 +13,35 @@ import com.mesmers.dimentools.model.Element;
 import com.mesmers.dimentools.model.Folder;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-public class DimenWriter extends WriteCommandAction.Simple {
+public class DimenWriter {
 
     private ArrayList<Folder> mFolders;
     private ArrayList<Element> mElements;
     protected Project mProject;
 
-    protected DimenWriter(Project project, String commandName, PsiFile file,
-                          ArrayList<Element> elements, ArrayList<Folder> folders) {
-        super(project, commandName);
+    public void setParameters(Project project, ArrayList<Element> elements, ArrayList<Folder> folders) {
         this.mElements = elements;
         this.mFolders = folders;
         this.mProject = project;
     }
 
-    @Override
-    protected void run() throws Throwable {
-        for (Folder folder : mFolders) {
-            if (!folder.used) {
-                continue;
-            }
-            PsiFile file = folder.file;
-            file.accept(new XmlRecursiveElementVisitor() {
-                @Override
-                public void visitElement(PsiElement element) {
-                    super.visitElement(element);
-                    if (element instanceof XmlTag) {
-                        XmlTag tag = (XmlTag) element;
-                        if (tag.getName().equalsIgnoreCase("resources")) {
-                            generateDimenCode(folder, tag);
-                        }
-                    }
-                }
-            });
-            CodeStyleManagerImpl codeStyleManager = (CodeStyleManagerImpl) CodeStyleManagerImpl.getInstance(mProject);
-            codeStyleManager.reformat(file);
-        }
-    }
-
-    private void generateDimenCode(Folder folder, XmlTag tag) {
+    private void generateDimenCode(Folder folder, XmlTag tag, Element element) {
         if (mElements.isEmpty()) {
             return;
         }
         List<XmlTag> tagList = new ArrayList<>();
         Map<String, XmlTag> tagMap = new HashMap<>();
         XmlTag[] tags = tag.findSubTags("dimen");
-        Collections.addAll(tagList, tags);
+        for (XmlTag xmlTag : tags) {
+            String name = getNameValue(xmlTag);
+            if (name != null && name.startsWith("dimen_")) {
+                tagList.add(xmlTag);
+            }
+        }
         for (XmlTag dimenTag : tags) {
             String value = getNameValue(dimenTag);
             if (value == null) {
@@ -71,58 +49,46 @@ public class DimenWriter extends WriteCommandAction.Simple {
             }
             tagMap.put(value, dimenTag);
         }
-        tagList.sort((t1, t2) -> {
-            String v1 = getNameValue(t1);
-            String v2 = getNameValue(t2);
-            if (v1 == null && v2 == null) {
-                return 0;
-            }
-            if (v1 == null) {
-                return 1;
-            }
-            if (v2 == null) {
-                return -1;
-            }
-            return v1.compareTo(v2);
-        });
-        for (Element element : mElements) {
-            if (!element.used) {
-                continue;
-            }
-            boolean update = tags.length == 0 || !tagMap.containsKey(element.fieldName);
-            if (update) {
-                StringBuilder builder = new StringBuilder();
-                builder.append("<dimen name=\"");
-                builder.append(element.fieldName);
-                builder.append("\">");
-                builder.append(element.getValue(folder));
-                builder.append("</dimen>");
-                XmlTag subTag = XmlElementFactory.getInstance(mProject).createTagFromText(builder.toString());
-                String currentValue = getNameValue(subTag);
-                XmlTag afterTag = null;
-                if (currentValue != null && currentValue.startsWith("dimen_")) {
-                    for (int i = 0; i < tagList.size(); i++) {
-                        XmlTag xmlTag = tagList.get(i);
-                        String xmlValue = getNameValue(xmlTag);
-                        if (xmlValue == null || !currentValue.startsWith("dimen_")) {
-                            continue;
-                        }
-                        float xdv = getDimenTagValue(xmlTag);
-                        float cdv = getDimenTagValue(subTag);
-                        if (cdv > xdv) {
-                            afterTag = xmlTag;
-                        }
+        if (!element.used) {
+            return;
+        }
+        boolean update = tags.length == 0 || !tagMap.containsKey(element.fieldName);
+        if (update) {
+            StringBuilder builder = new StringBuilder();
+            builder.append("<dimen name=\"");
+            builder.append(element.fieldName);
+            builder.append("\">");
+            builder.append(element.getValue(folder));
+            builder.append("</dimen>");
+            XmlTag subTag = XmlElementFactory.getInstance(mProject).createTagFromText(builder.toString());
+            String currentValue = getNameValue(subTag);
+            float cdv = getDimenTagValue(subTag);
+            XmlTag afterTag = null;
+            if (currentValue != null && currentValue.startsWith("dimen_")) {
+                for (int i = 0; i < tagList.size(); i++) {
+                    XmlTag xmlTag = tagList.get(i);
+                    String xmlValue = getNameValue(xmlTag);
+                    if (xmlValue == null || !xmlValue.startsWith("dimen_")) {
+                        continue;
+                    }
+                    float odv = afterTag == null ? 0 : getDimenTagValue(afterTag);
+                    float xdv = getDimenTagValue(xmlTag);
+                    if (cdv > xdv && xdv > odv) {
+                        afterTag = xmlTag;
                     }
                 }
-                if (afterTag != null) {
-                    tag.addAfter(subTag, afterTag);
-                } else {
-                    tag.addSubTag(subTag, true);
-                }
-                tagMap.put(currentValue, subTag);
             }
-            element.attribute.setValue(String.format("@dimen/%s", element.fieldName));
+            if (afterTag != null) {
+                tag.addAfter(subTag, afterTag);
+            } else {
+                tag.addSubTag(subTag, false);
+            }
+            tagMap.put(currentValue, subTag);
+            if (currentValue != null && currentValue.startsWith("dimen_")) {
+                tagList.add(subTag);
+            }
         }
+        element.attribute.setValue(String.format("@dimen/%s", element.fieldName));
     }
 
     private String getNameValue(XmlTag tag) {
@@ -135,6 +101,53 @@ public class DimenWriter extends WriteCommandAction.Simple {
 
     private float getDimenTagValue(XmlTag tag) {
         String text = tag.getValue().getText();
-        return Float.parseFloat(text.substring(0, text.length() - 2));
+        float result = 0;
+        try {
+            result = Float.parseFloat(text.substring(0, text.length() - 2));
+        } catch (NumberFormatException e) {
+            if (text.endsWith("dip")) {
+                try {
+                    result = Float.parseFloat(text.substring(0, text.length() - 2));
+                } catch (NumberFormatException e2) {
+                    return result;
+                }
+            }
+            return result;
+        }
+        return result;
+    }
+
+    public void execute() {
+        WriteCommandAction.runWriteCommandAction(mProject, new Runnable() {
+            @Override
+            public void run() {
+                DimenWriter.this.run();
+            }
+        });
+    }
+
+    protected void run() {
+        for (Folder folder : mFolders) {
+            if (!folder.used) {
+                continue;
+            }
+            PsiFile file = folder.file;
+            for (Element e : mElements) {
+                file.accept(new XmlRecursiveElementVisitor() {
+                    @Override
+                    public void visitElement(PsiElement element) {
+                        super.visitElement(element);
+                        if (element instanceof XmlTag) {
+                            XmlTag tag = (XmlTag) element;
+                            if (tag.getName().equalsIgnoreCase("resources")) {
+                                generateDimenCode(folder, tag, e);
+                            }
+                        }
+                    }
+                });
+            }
+            CodeStyleManagerImpl codeStyleManager = (CodeStyleManagerImpl) CodeStyleManagerImpl.getInstance(mProject);
+            codeStyleManager.reformat(file);
+        }
     }
 }

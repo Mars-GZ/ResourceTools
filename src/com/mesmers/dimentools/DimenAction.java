@@ -98,7 +98,9 @@ public class DimenAction extends BaseGenerateAction implements IConfirmListener,
         }
         closeDialog();
         if (Utils.isCheckedElement(elements) && Utils.isCheckedFolder(folders)) {
-            new DimenWriter(project, "Generate Dimens", file, elements, folders).execute();
+            DimenWriter writer = new DimenWriter();
+            writer.setParameters(project, elements, folders);
+            writer.execute();
         } else {
             Utils.showErrorNotificationDialog(project, "No data selected");
         }
